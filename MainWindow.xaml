@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:SoundPlay"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
+        Title="自动播放音乐" Height="450" Width="863" ResizeMode="CanMinimize">
     <Window.Resources>
         <local:ViewModel x:Key="model"/>
     </Window.Resources>
@@ -14,6 +14,46 @@
     </Window.DataContext>
     <Grid>
         <Rectangle Fill="#FFF4F4F5" Stroke="#FF5ABED6" StrokeThickness="2"/>
-        
+        <GroupBox Header="音乐列表" Margin="4,4,0,4" HorizontalAlignment="Left" Width="642">
+            <ListView ItemsSource="{Binding Sounds}">
+                <ListView.View>
+                    <GridView>
+                        <GridViewColumn Header="序列" Width="40" DisplayMemberBinding="{Binding Index}"/>
+                        <GridViewColumn Header="存在" Width="40" DisplayMemberBinding="{Binding Have}"/>
+                        <GridViewColumn Header="自动下一首" Width="70" DisplayMemberBinding="{Binding AutoNext}"/>
+                        <GridViewColumn Header="路径" Width="460" DisplayMemberBinding="{Binding Local}"/>
+                    </GridView>
+                </ListView.View>
+                <ListView.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="上移"/>
+                        <MenuItem Header="下移"/>
+                        <MenuItem Header="自动下一首"/>
+                    </ContextMenu>
+                </ListView.ContextMenu>
+            </ListView>
+        </GroupBox>
+        <Button Content="刷新列表" Margin="781,154,0,0" Height="20" VerticalAlignment="Top" HorizontalAlignment="Left" Width="60"/>
+        <Button Content="重置播放" Margin="781,104,0,0" HorizontalAlignment="Left" Width="60" Height="20" VerticalAlignment="Top"/>
+        <ContentControl Content="{Binding MediaElementObject}"/>
+        <Label Content="当前播放" HorizontalAlignment="Left" Margin="651,4,0,0" VerticalAlignment="Top"/>
+        <Label Content="{Binding SoundName}" 
+               HorizontalAlignment="Left" Margin="651,29,0,0" VerticalAlignment="Top"/>
+        <Label Content="{Binding TimeAll}" 
+               HorizontalAlignment="Left" Margin="651,79,0,0" VerticalAlignment="Top"/>
+        <Label Content="/" HorizontalAlignment="Left" Margin="692,79,0,0" VerticalAlignment="Top"/>
+        <Label Content="{Binding TimeNow}" 
+               HorizontalAlignment="Left" Margin="707,79,0,0" VerticalAlignment="Top"/>
+        <Button Content="开始播放" Margin="651,104,0,0" Height="20" VerticalAlignment="Top" HorizontalAlignment="Left" Width="60"
+                CommandParameter="Start"  
+                Command="{Binding ButtonClick}"/>
+        <Button Content="暂停播放" Margin="716,104,0,0" Height="20" VerticalAlignment="Top" HorizontalAlignment="Left" Width="60"/>
+        <Label Content="当前序列：" HorizontalAlignment="Left" Margin="651,54,0,0" VerticalAlignment="Top"/>
+        <Label Content="{Binding Index}" 
+               HorizontalAlignment="Left" Margin="721,54,0,0" VerticalAlignment="Top"/>
+        <Button Content="列表重播" Margin="651,129,0,0" HorizontalAlignment="Left" Width="60" Height="20" VerticalAlignment="Top"/>
+        <Button Content="上一首" Margin="716,129,0,0" HorizontalAlignment="Left" Width="60" Height="20" VerticalAlignment="Top"/>
+        <Button Content="下一首" Margin="781,129,0,0" HorizontalAlignment="Left" Width="60" Height="20" VerticalAlignment="Top"/>
+
     </Grid>
 </Window>
