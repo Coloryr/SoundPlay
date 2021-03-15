@@ -16,7 +16,8 @@ namespace SoundPlay
     {
         public static ConfigObj Config { get; private set; }
         public static string RunLocal { get; private set; }
-        private static string SoundLocal;
+        public static string SoundLocal { get; private set; }
+        public static MainWindow MainWindow_ { get; set; }
         private void Application_Startup(object sender, StartupEventArgs e)
         {
             RunLocal = AppContext.BaseDirectory;
@@ -34,7 +35,8 @@ namespace SoundPlay
             {
                 Directory.CreateDirectory(SoundLocal);
             }
-            var sounds = Directory.GetFiles(SoundLocal).ToList();
+            var list = Directory.GetFiles(SoundLocal);
+            var sounds = (from item in list select item.Replace(SoundLocal, "")).ToList();
             int MaxIndex = 0;
             foreach (var item in Config.Sounds)
             {
@@ -62,6 +64,11 @@ namespace SoundPlay
                     Local = item
                 });
             }
+            Update();
+            Save();
+        }
+        public static void Update()
+        {
             var query = from items in Config.Sounds orderby items.Index select items;
             var list = new List<SoundItem>(query);
             Config.Sounds.Clear();
@@ -71,6 +78,9 @@ namespace SoundPlay
                 item.Index = add + 1;
                 Config.Sounds.Add(item);
             }
+        }
+        public static void Save()
+        {
             ConfigUtils.Save(Config, RunLocal + "MainConfig.json");
         }
     }

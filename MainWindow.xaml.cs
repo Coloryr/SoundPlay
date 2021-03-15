@@ -22,6 +22,7 @@ namespace SoundPlay
     {
         public MainWindow()
         {
+            App.MainWindow_ = this;
             InitializeComponent();
         }
     }

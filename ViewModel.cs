@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -29,14 +30,14 @@ namespace SoundPlay
             DoExcute?.Invoke(parameter);
         }
     }
-    class ViewModel
+    class ViewModel : INotifyPropertyChanged
     {
         private string SoundName_;
         private int Index_;
         private string TimeAll_;
         private string TimeNow_;
-        private string NowUrl_;
         private ObservableCollection<SoundItem> Sounds_;
+        private string State_;
         public string SoundName
         {
             get => SoundName_;
@@ -50,17 +51,18 @@ namespace SoundPlay
         public string TimeAll
         {
             get => TimeAll_;
-            set => SetProperty(ref TimeAll_ ,value);
+            set => SetProperty(ref TimeAll_, value);
         }
         public string TimeNow
         {
             get => TimeNow_;
-            set => SetProperty(ref TimeNow_ ,value);
+            set => SetProperty(ref TimeNow_, value);
         }
-        public string NowUrl
+
+        public string State
         {
-            get => NowUrl_;
-            set => SetProperty(ref NowUrl_, value);
+            get => State_;
+            set => SetProperty(ref State_, value);
         }
 
         public ObservableCollection<SoundItem> Sounds
@@ -75,9 +77,16 @@ namespace SoundPlay
             set => SetProperty(ref MediaElementObject_, value);
         }
         public event PropertyChangedEventHandler PropertyChanged;
-        protected void OnPropertyChanged([CallerMemberName] string propertyName = "")
+        private bool SetProperty<T>(ref T field, T newValue, [CallerMemberName] string propertyName = null)
         {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            if (!Equals(field, newValue))
+            {
+                field = newValue;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+                return true;
+            }
+
+            return false;
         }
         public ICommand ButtonClick
         {
@@ -90,48 +99,219 @@ namespace SoundPlay
                 };
             }
         }
+        public ICommand UpClick
+        {
+            get
+            {
+                return new ViewModelCommand()
+                {
+                    DoExcute = new Action<object>((obj) =>
+                    {
+                        int index = (int)obj;
+                        if (index <= 0)
+                        {
+                            return;
+                        }
+                        SoundItem item = App.Config.Sounds[index];
+                        SoundItem item1 = App.Config.Sounds[index - 1];
+                        int temp = item.Index;
+                        item.Index = item1.Index;
+                        item1.Index = temp;
+                        App.Update();
+                        App.Save();
+                        Sounds.Clear();
+                        foreach (var item2 in App.Config.Sounds)
+                        {
+                            Sounds.Add(item2);
+                        }
+                    }),
+                    CanExcute = new Func<object, bool>(CanAction)
+                };
+            }
+        }
+        public ICommand DownClick
+        {
+            get
+            {
+                return new ViewModelCommand()
+                {
+                    DoExcute = new Action<object>((obj) =>
+                    {
+                        int index = (int)obj;
+                        if (index >= Sounds_.Count - 1)
+                        {
+                            return;
+                        }
+                        SoundItem item = App.Config.Sounds[index];
+                        SoundItem item1 = App.Config.Sounds[index + 1];
+                        int temp = item.Index;
+                        item.Index = item1.Index;
+                        item1.Index = temp;
+                        App.Update();
+                        App.Save();
+                        Sounds.Clear();
+                        foreach (var item2 in App.Config.Sounds)
+                        {
+                            Sounds.Add(item2);
+                        }
+                    }),
+                    CanExcute = new Func<object, bool>(CanAction)
+                };
+            }
+        }
+
+        public ICommand AutoClick
+        {
+            get
+            {
+                return new ViewModelCommand()
+                {
+                    DoExcute = new Action<object>((obj) =>
+                    {
+                        int index = (int)obj;
+                        if (index < 0)
+                        {
+                            return;
+                        }
+                        SoundItem item = App.Config.Sounds[index];
+                        item.AutoNext = !item.AutoNext;
+                        App.Save();
+                        Sounds.Clear();
+                        foreach (var item2 in App.Config.Sounds)
+                        {
+                            Sounds.Add(item2);
+                        }
+                    }),
+                    CanExcute = new Func<object, bool>(CanAction)
+                };
+            }
+        }
+
+        public ICommand DeleteClick
+        {
+            get
+            {
+                return new ViewModelCommand()
+                {
+                    DoExcute = new Action<object>((obj) =>
+                    {
+                        int index = (int)obj;
+                        if (index < 0)
+                        {
+                            return;
+                        }
+                        App.Config.Sounds.RemoveAt(index);
+                        App.Update();
+                        App.Save();
+                        Sounds.Clear();
+                        foreach (var item2 in App.Config.Sounds)
+                        {
+                            Sounds.Add(item2);
+                        }
+                    }),
+                    CanExcute = new Func<object, bool>(CanAction)
+                };
+            }
+        }
 
         private bool CanAction(object arg)
         {
             return !(arg is null);
         }
-
+        
         private void ButtonAction(object obj)
         {
             switch (obj as string)
             {
                 case "Start":
-                    if (IsPlay)
+                    if (!IsPlay)
+                    {
+                        var list = from item in Sounds_ where item.Index == Index select item;
+                        if (!list.Any())
+                        {
+                            MessageBox.Show("播放错误");
+                            return;
+                        }
+                        PlayItem = list.First();
+                        MediaElementObject_.Source = new Uri(App.SoundLocal + PlayItem.Local);
+                        MediaElementObject_.Play();
+                        SoundName = PlayItem.Local;
+                        IsPlay = true;
+                        State = "播放";
+                    }
+                    else if (IsPause)
+                    {
+                        MediaElementObject_.Play();
+                        IsPause = false;
+                    }
+                    break;
+                case "Pause":
+                    if (!IsPlay || IsPause)
                     {
                         return;
                     }
-                    var list = from item in Sounds_ where item.Index == Index select item;
-                    if (!list.Any())
+                    State = "暂停";
+                    MediaElementObject_.Pause();
+                    IsPause = true;
+                    break;
+                case "Reset":
+                    if (!IsPlay)
                     {
-                        MessageBox.Show("播放错误");
                         return;
                     }
-                    PlayItem = list.First();
-                    NowUrl_ = PlayItem.Local;
-
+                    State = "停止";
+                    MediaElementObject_.Stop();
+                    IsPlay = false;
+                    IsPause = false;
+                    break;
+                case "First":
+                    MediaElementObject_.Stop();
+                    Clear();
+                    Index = 1;
+                    break;
+                case "Last":
+                    MediaElementObject_.Stop();
+                    Clear();
+                    if (Index <= 1)
+                    {
+                        return;
+                    }
+                    Index--;
+                    break;
+                case "Next":
+                    MediaElementObject_.Stop();
+                    Clear();
+                    if (Index >= Sounds.Count)
+                    {
+                        return;
+                    }
+                    Index++;
+                    break;
+                case "Refresh":
+                    MediaElementObject_.Stop();
+                    Clear();
+                    Index = 1;
+                    App.ReadList();
+                    Sounds = new ObservableCollection<SoundItem>(App.Config.Sounds);
                     break;
             }
         }
 
-        private bool SetProperty<T>(ref T field, T newValue, [CallerMemberName] string propertyName = null)
+        private void Clear()
         {
-            if (!Equals(field, newValue))
-            {
-                field = newValue;
-                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-                return true;
-            }
-
-            return false;
+            TimeAll = "00:00";
+            TimeNow = "00:00";
+            State = "停止";
+            SoundName = "无";
+            IsPlay = false;
+            IsPause = false;
         }
 
         private bool IsPlay;
+        private bool IsPause;
         private SoundItem PlayItem;
+        private Thread RunTask;
+        private bool IsRun;
 
         public ViewModel()
         {
@@ -139,8 +319,58 @@ namespace SoundPlay
             Index_ = 1;
             TimeAll_ = "00:00";
             TimeNow_ = "00:00";
+            State_ = "停止";
             Sounds_ = new ObservableCollection<SoundItem>(App.Config.Sounds);
-            NowUrl_ = "";
+            MediaElementObject_ = new MediaElement
+            {
+                LoadedBehavior = MediaState.Manual,
+                UnloadedBehavior = MediaState.Manual
+            };
+            MediaElementObject_.MediaEnded += MediaElementObject_MediaEnded;
+            App.MainWindow_.Closing += MainWindow_Closing;
+            var uiScheduler = TaskScheduler.FromCurrentSynchronizationContext();
+            RunTask = new Thread(() =>
+            {
+                while (IsRun)
+                {
+                    if (IsPlay)
+                    {
+                        Task.Factory.StartNew(() =>
+                        {
+                            if (MediaElementObject.NaturalDuration.HasTimeSpan)
+                            {
+                                TimeSpan timeall = MediaElementObject.NaturalDuration.TimeSpan;
+                                TimeAll = $"{timeall.Minutes:00}:{timeall.Seconds:00}";
+                            }
+                            TimeSpan time = MediaElementObject_.Position;
+                            TimeNow = $"{time.Minutes:00}:{time.Seconds:00}";
+                        }, CancellationToken.None, TaskCreationOptions.None, uiScheduler);
+                    }
+                    Thread.Sleep(200);
+                }
+            });
+            IsRun = true;
+            RunTask.Start();
+        }
+
+        private void MainWindow_Closing(object sender, CancelEventArgs e)
+        {
+            IsRun = false;
+            if (IsPlay)
+            {
+                MediaElementObject_.Stop();
+            }
+        }
+
+        private void MediaElementObject_MediaEnded(object sender, RoutedEventArgs e)
+        {
+            IsPlay = false;
+            Index++;
+            Clear();
+            if (PlayItem.AutoNext)
+            {
+                ButtonAction("Start");
+            }
         }
     }
 }
